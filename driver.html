@@ -232,7 +232,36 @@ function doLogout() {
   document.getElementById('screen-login').style.display = 'flex';
 }
 
-async function askNotifPermission() {
+// ── Audio unlock on first interaction ─────────────────────────────────────
+let audioCtx = null;
+document.addEventListener('click', () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}, { once: false });
+
+function playBeep() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // Two-tone alert beep
+    [0, 0.25].forEach(delay => {
+      const osc  = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.3);
+      osc.start(audioCtx.currentTime + delay);
+      osc.stop(audioCtx.currentTime + delay + 0.3);
+    });
+  } catch(e) { console.log('Audio error:', e); }
+}
   if ('Notification' in window) {
     const p = await Notification.requestPermission();
     notifOk = p === 'granted';
@@ -243,7 +272,7 @@ async function askNotifPermission() {
 }
 
 function notify(body) {
-  // Visual banner always
+  // Visual banner
   const bar = document.getElementById('notif-bar');
   document.getElementById('notif-text').textContent = body;
   bar.style.display = 'flex';
@@ -252,18 +281,8 @@ function notify(body) {
   if (notifOk) {
     try { new Notification('🛺 New buggy request', { body, requireInteraction: true }); } catch(e) {}
   }
-  // Audio beep as fallback
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.4);
-  } catch(e) {}
+  // In-page audio beep (works even when Safari blocks OS sound)
+  playBeep();
 }
 
 function startListening() {
