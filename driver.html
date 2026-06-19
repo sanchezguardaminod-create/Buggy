@@ -252,7 +252,7 @@ function accept(key) {
 function complete(key) {
   const t = trips[key];
   if (!t || t.status !== 'accepted' || t.driver !== me) return;
-  db.ref('requests/' + key).update({ status: 'completed', completedAt: Date.now() });
+  db.ref('requests/' + key).update({ status: 'finish ride', completedAt: Date.now() });
 }
 
 function ageInfo(createdAt) {
