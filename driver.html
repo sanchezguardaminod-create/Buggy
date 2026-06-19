@@ -128,10 +128,20 @@ html, body { height: 100%; background: var(--bg2); font-family: -apple-system, B
   <div class="stats">
     <div class="stat"><div class="stat-n red" id="st-pend">0</div><div class="stat-l">Pending</div></div>
     <div class="stat"><div class="stat-n" id="st-acc">0</div><div class="stat-l">In progress</div></div>
-    <div class="stat"><div class="stat-n" id="st-done">0</div><div class="stat-l">Today</div></div>
+    <div class="stat" onclick="toggleMyRides()" style="cursor:pointer;">
+      <div class="stat-n" id="st-done">0</div>
+      <div class="stat-l" style="display:flex;align-items:center;gap:4px;">Today <span id="today-arrow" style="font-size:10px;">▼</span></div>
+    </div>
   </div>
   <div class="notif-bar" id="notif-bar">
     <span>🔔</span><span id="notif-text">New request</span>
+  </div>
+  <div id="my-rides-panel" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg2); z-index:100; overflow-y:auto;">
+    <div style="background:var(--bg); border-bottom:1px solid var(--border); padding:10px 14px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:10;">
+      <button onclick="toggleMyRides()" style="background:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; color:var(--text);">← Back</button>
+      <span style="font-size:15px; font-weight:600; color:var(--text);">My rides today</span>
+    </div>
+    <div id="my-rides-list" style="padding:12px 14px;"></div>
   </div>
   <div class="body" id="trips-body"></div>
 </div>
@@ -226,14 +236,34 @@ async function askNotifPermission() {
   if ('Notification' in window) {
     const p = await Notification.requestPermission();
     notifOk = p === 'granted';
+    if (!notifOk) {
+      alert('Please allow notifications in your browser settings to receive ride alerts.');
+    }
   }
 }
+
 function notify(body) {
-  if (notifOk) new Notification('🛺 Buggy — new request', { body });
+  // Visual banner always
   const bar = document.getElementById('notif-bar');
   document.getElementById('notif-text').textContent = body;
   bar.style.display = 'flex';
-  setTimeout(() => { bar.style.display = 'none'; }, 6000);
+  setTimeout(() => { bar.style.display = 'none'; }, 8000);
+  // Push notification
+  if (notifOk) {
+    try { new Notification('🛺 New buggy request', { body, requireInteraction: true }); } catch(e) {}
+  }
+  // Audio beep as fallback
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) {}
 }
 
 function startListening() {
@@ -267,7 +297,7 @@ function render() {
   const list = Object.entries(trips).map(([k, v]) => ({ ...v, _key: k }));
   const pending   = list.filter(t => t.status === 'pending');
   const accepted  = list.filter(t => t.status === 'accepted');
-  const completed = list.filter(t => t.status === 'completed' && t.completedAt >= todayStart.getTime());
+  const completed = list.filter(t => t.status === 'completed' && t.driver === me);
 
   const pCount = pending.length;
   if (prevPendingCount >= 0 && pCount > prevPendingCount) {
@@ -285,8 +315,8 @@ function render() {
     return a.createdAt - b.createdAt;
   };
   const active = [...pending.sort(sortFn), ...accepted.sort(sortFn)];
-  const recent = completed.sort((a,b) => b.completedAt - a.completedAt).slice(0, 6);
-  const all    = [...active, ...recent];
+  // completed hidden from main view — shown in My rides panel
+  const all = [...active];
 
   const bySection = { R: [], E: [], B: [] };
   all.forEach(t => { if (bySection[t.type]) bySection[t.type].push(t); });
@@ -295,7 +325,7 @@ function render() {
   SECTION_ORDER.forEach(sec => {
     const items = bySection[sec.key];
     if (!items.length) return;
-    html += `<div class="sec-hd"><span class="sec-name">${sec.label}</span><span class="sec-ct">${items.filter(t=>t.status!=='completed').length} active</span></div>`;
+    html += `<div class="sec-hd"><span class="sec-name">${sec.label}</span><span class="sec-ct">${items.length} active</span></div>`;
     items.forEach(t => {
       const ts = new Date(t.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       const { label: ageLabel, cls: ageCls } = ageInfo(t.createdAt);
@@ -305,7 +335,6 @@ function render() {
       let cardClass = t.status;
       if (t.status === 'pending' && t.priority) cardClass = 'prio';
       if (t.status === 'accepted' && t.driver === me) cardClass = 'mine';
-      if (t.status === 'completed') cardClass = 'done';
 
       let statusChip = '';
       if (t.status === 'pending') {
@@ -313,15 +342,13 @@ function render() {
       } else if (t.status === 'accepted') {
         const cls = t.driver === me ? 'mine' : '';
         statusChip = `<span class="assigned ${cls}">🚗 ${t.driver} — on the way</span>`;
-      } else if (t.status === 'completed') {
-        statusChip = `<span class="done-txt">✓ ${t.driver}</span>`;
       }
 
       let action = '';
       if (t.status === 'pending') {
         action = `<button class="act-btn accept" onclick="accept('${t._key}')">🚗 Accept</button>`;
       } else if (t.status === 'accepted' && t.driver === me) {
-        action = `<button class="act-btn complete" onclick="complete('${t._key}')">✓ Completed</button>`;
+        action = `<button class="act-btn complete" onclick="complete('${t._key}')">✓ Finish ride</button>`;
       }
 
       html += `<div class="trip ${cardClass}">
@@ -342,6 +369,43 @@ function render() {
 
   if (!all.length) html = '<div class="empty">No active requests ✓</div>';
   document.getElementById('trips-body').innerHTML = html;
+
+  // update My rides panel
+  const myDone = completed.sort((a,b) => (b.completedAt||0) - (a.completedAt||0));
+  const myRidesList = document.getElementById('my-rides-list');
+  if (!myDone.length) {
+    myRidesList.innerHTML = '<div style="text-align:center;padding:3rem 1rem;font-size:14px;color:var(--text2);">No completed rides yet</div>';
+  } else {
+    myRidesList.innerHTML = myDone.map((t, i) => {
+      const from  = new Date(t.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      const to    = t.completedAt ? new Date(t.completedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const mins  = t.completedAt ? Math.round((t.completedAt - t.createdAt) / 60000) : '—';
+      const prio  = t.priority ? '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:999px;font-weight:600;">⚡ PRIORITY</span>' : '';
+      return `<div style="background:var(--bg);border:1px solid var(--border);border-left:3px solid #22c55e;border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;font-weight:600;color:var(--text2);">#${myDone.length - i}</span>
+            <span style="font-size:15px;font-weight:600;color:var(--text);">${t.station}</span>
+            ${prio}
+          </div>
+          <span style="font-size:11px;color:var(--text2);">${from}</span>
+        </div>
+        <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);">
+          <span>👥 ${t.pax} ${t.pax===1?'passenger':'passengers'}</span>
+          <span>🕐 ${from} → ${to}</span>
+          <span style="color:#16a34a;font-weight:600;">✓ ${mins} min</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function toggleMyRides() {
+  const panel = document.getElementById('my-rides-panel');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  const arrow = document.getElementById('today-arrow');
+  if (arrow) arrow.textContent = open ? '▲' : '▼';
 }
 
 buildLogin();
