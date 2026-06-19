@@ -99,9 +99,11 @@ setInterval(() => {
 }, 1000);
 
 const SECTIONS = [
-  { key: 'B', label: 'Room blocks',  hasPrio: true  },
-  { key: 'E', label: 'Stations',     hasPrio: false },
-  { key: 'R', label: 'Restaurants',  hasPrio: false },
+  { key: 'D', label: 'Departures',           hasPrio: false },
+  { key: 'M', label: 'Room moves',            hasPrio: false },
+  { key: 'B', label: 'Room blocks',           hasPrio: true  },
+  { key: 'E', label: 'Stations',              hasPrio: false },
+  { key: 'R', label: 'Restaurants',           hasPrio: false },
 ];
 
 function ageInfo(createdAt) {
@@ -130,7 +132,7 @@ function render() {
     ...completed.sort((a,b) => b.completedAt - a.completedAt).slice(0, 20),
   ];
 
-  const bySection = { R: [], E: [], B: [] };
+  const bySection = { R: [], E: [], B: [], M: [], D: [] };
   active.forEach(t => { if (bySection[t.type]) bySection[t.type].push(t); });
 
   let html = '';
@@ -152,8 +154,12 @@ function render() {
       items.forEach(t => {
         const ts = new Date(t.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
         const { label: ageLabel, cls: ageCls } = ageInfo(t.createdAt);
-        const prioBadge = t.priority ? '<div class="prio-tag">⚡ PRIORITY</div>' : '';
-        const roomChip  = t.room ? `<div class="detail-chip">🚪 Room ${t.room}</div>` : '';
+        const prioBadge  = t.priority ? '<div class="prio-tag">⚡ PRIORITY</div>' : '';
+        const roomChip   = t.type === 'B' && t.room ? `<div class="detail-chip">🚪 Room ${t.room}</div>` : '';
+        const moveChip   = t.type === 'M' ? `<div class="detail-chip">🔄 Room ${t.room} → ${t.roomTo}</div>` : '';
+        const departChip = t.type === 'D' ? `<div class="detail-chip">🧳 Room ${t.room} → Luggage Room</div>` : '';
+        const extraChip  = roomChip || moveChip || departChip;
+        const paxChip    = (t.type !== 'M' && t.type !== 'D') ? `<div class="detail-chip">👥 ${t.pax} pax</div>` : '';
         let cardClass = t.status;
         if (t.status === 'pending' && t.priority) cardClass = 'prio';
         if (t.status === 'completed') cardClass = 'done';
@@ -173,8 +179,8 @@ function render() {
             <div class="trip-ts">${ts}</div>
           </div>
           <div class="trip-detail">
-            <div class="detail-chip">👥 ${t.pax} ${t.pax===1?'pax':'pax'}</div>
-            ${roomChip}
+            ${paxChip}
+            ${extraChip}
           </div>
           ${statusLine}
         </div>`;
