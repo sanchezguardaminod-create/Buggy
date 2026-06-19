@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<title>Buggy — Dashboard</title>
+<script src="firebase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #ffffff;
+  --bg2:       #f5f5f4;
+  --bg3:       #eeede9;
+  --text:      #1a1a1a;
+  --text2:     #6b7280;
+  --border:    #e5e7eb;
+  --radius:    12px;
+  --red:       #dc2626;
+  --red-bg:    #fee2e2;
+  --red-text:  #991b1b;
+  --amber:     #d97706;
+  --amber-bg:  #fef3c7;
+  --amber-text:#92400e;
+  --green:     #16a34a;
+  --green-bg:  #dcfce7;
+  --green-text:#14532d;
+}
+html, body { height: 100%; background: var(--bg2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.topbar { background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; }
+.topbar h1 { font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.live { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+.tb-right { display: flex; align-items: center; gap: 10px; }
+.tb-time { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--text2); }
+.stats-bar { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+.stat { background: var(--bg2); border-radius: 10px; padding: 10px 16px; display: flex; align-items: baseline; gap: 8px; }
+.stat-n { font-size: 22px; font-weight: 700; color: var(--text); }
+.stat-l { font-size: 12px; color: var(--text2); }
+.stat.alert .stat-n { color: var(--red); }
+.body { padding: 16px 20px 40px; }
+.sec { margin-bottom: 28px; }
+.sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.sec-name { font-size: 13px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: .06em; }
+.sec-ct   { font-size: 12px; background: var(--bg3); padding: 2px 9px; border-radius: 999px; color: var(--text2); }
+.sec-prio { font-size: 11px; font-weight: 700; background: var(--red-bg); color: var(--red-text); padding: 2px 8px; border-radius: 999px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.trip { background: var(--bg); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: var(--radius); padding: 13px 14px; }
+.trip.pending  { border-left-color: var(--red); }
+.trip.prio     { border-left-color: var(--red); background: #fff8f8; }
+.trip.accepted { border-left-color: var(--amber); background: var(--amber-bg); }
+.trip.done     { border-left-color: #d1d5db; opacity: .55; }
+.trip-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.trip-loc  { font-size: 15px; font-weight: 700; color: var(--text); }
+.prio-tag  { font-size: 10px; font-weight: 700; background: var(--red-bg); color: var(--red-text); padding: 2px 7px; border-radius: 999px; display: inline-block; margin-top: 4px; }
+.trip-ts   { font-size: 11px; color: var(--text2); text-align: right; flex-shrink: 0; }
+.trip-detail { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--text2); }
+.detail-chip { background: var(--bg2); padding: 3px 8px; border-radius: 999px; display: flex; align-items: center; gap: 4px; }
+.age { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.age.fresh { background: var(--green-bg);  color: var(--green-text); }
+.age.mid   { background: var(--amber-bg);  color: var(--amber-text); }
+.age.old   { background: var(--red-bg);    color: var(--red-text); animation: blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.5} }
+.driver-tag { font-size: 12px; font-weight: 600; color: var(--amber-text); margin-top: 6px; }
+.done-tag   { font-size: 12px; color: var(--green-text); margin-top: 6px; font-weight: 600; }
+.empty-sec  { font-size: 13px; color: var(--text2); padding: 12px 0; }
+.clear-btn { font-size: 12px; color: var(--text2); background: none; border: 1px solid var(--border); padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+.clear-btn:hover { background: var(--red-bg); color: var(--red-text); border-color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1><span class="live"></span> Buggy Dashboard</h1>
+  <div class="tb-right">
+    <span class="tb-time" id="clock">—</span>
+    <button class="clear-btn" onclick="clearCompleted()">Clear completed</button>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat" id="stat-pend"><div class="stat-n" id="n-pend">0</div><div class="stat-l">Pending</div></div>
+  <div class="stat"><div class="stat-n" id="n-acc">0</div><div class="stat-l">In progress</div></div>
+  <div class="stat"><div class="stat-n" id="n-done">0</div><div class="stat-l">Completed today</div></div>
+  <div class="stat"><div class="stat-n" id="n-pax">0</div><div class="stat-l">Passengers today</div></div>
+</div>
+
+<div class="body" id="body"></div>
+
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+let trips = {};
+
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}, 1000);
+
+const SECTIONS = [
+  { key: 'B', label: 'Room blocks',  hasPrio: true  },
+  { key: 'E', label: 'Stations',     hasPrio: false },
+  { key: 'R', label: 'Restaurants',  hasPrio: false },
+];
+
+function ageInfo(createdAt) {
+  const mins = Math.floor((Date.now() - createdAt) / 60000);
+  const label = mins < 1 ? 'Just now' : mins === 1 ? '1 min' : `${mins} min`;
+  const cls   = mins < 5 ? 'fresh' : mins < 12 ? 'mid' : 'old';
+  return { label, cls };
+}
+
+function render() {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const list = Object.entries(trips).map(([k, v]) => ({ ...v, _key: k }));
+  const pending   = list.filter(t => t.status === 'pending');
+  const accepted  = list.filter(t => t.status === 'accepted');
+  const completed = list.filter(t => t.status === 'completed' && t.completedAt >= todayStart.getTime());
+
+  document.getElementById('n-pend').textContent = pending.length;
+  document.getElementById('n-acc').textContent  = accepted.length;
+  document.getElementById('n-done').textContent = completed.length;
+  document.getElementById('n-pax').textContent  = completed.reduce((s, t) => s + (t.pax || 0), 0);
+  document.getElementById('stat-pend').classList.toggle('alert', pending.length > 0);
+
+  const active = [
+    ...pending.sort((a,b) => { if(a.priority!==b.priority) return a.priority?-1:1; return a.createdAt-b.createdAt; }),
+    ...accepted.sort((a,b) => a.acceptedAt - b.acceptedAt),
+    ...completed.sort((a,b) => b.completedAt - a.completedAt).slice(0, 20),
+  ];
+
+  const bySection = { R: [], E: [], B: [] };
+  active.forEach(t => { if (bySection[t.type]) bySection[t.type].push(t); });
+
+  let html = '';
+  SECTIONS.forEach(sec => {
+    const items = bySection[sec.key];
+    const activeCount = items.filter(t => t.status !== 'completed').length;
+    const prioBadge = sec.hasPrio ? '<span class="sec-prio">⚡ Includes priority</span>' : '';
+    html += `<div class="sec">
+      <div class="sec-head">
+        <span class="sec-name">${sec.label}</span>
+        <span class="sec-ct">${activeCount} active</span>
+        ${prioBadge}
+      </div>
+      <div class="grid">`;
+
+    if (!items.length) {
+      html += '<div class="empty-sec">No active requests</div>';
+    } else {
+      items.forEach(t => {
+        const ts = new Date(t.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const { label: ageLabel, cls: ageCls } = ageInfo(t.createdAt);
+        const prioBadge = t.priority ? '<div class="prio-tag">⚡ PRIORITY</div>' : '';
+        const roomChip  = t.room ? `<div class="detail-chip">🚪 Room ${t.room}</div>` : '';
+        let cardClass = t.status;
+        if (t.status === 'pending' && t.priority) cardClass = 'prio';
+        if (t.status === 'completed') cardClass = 'done';
+        let statusLine = '';
+        if (t.status === 'pending') {
+          statusLine = `<div class="age ${ageCls}">⏱ ${ageLabel}</div>`;
+        } else if (t.status === 'accepted') {
+          const accTs = new Date(t.acceptedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+          statusLine = `<div class="driver-tag">🚗 ${t.driver} — on the way (${accTs})</div>`;
+        } else if (t.status === 'completed') {
+          const doneTs = new Date(t.completedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+          statusLine = `<div class="done-tag">✓ Completed by ${t.driver} · ${doneTs}</div>`;
+        }
+        html += `<div class="trip ${cardClass}">
+          <div class="trip-head">
+            <div><div class="trip-loc">${t.station}</div>${prioBadge}</div>
+            <div class="trip-ts">${ts}</div>
+          </div>
+          <div class="trip-detail">
+            <div class="detail-chip">👥 ${t.pax} ${t.pax===1?'pax':'pax'}</div>
+            ${roomChip}
+          </div>
+          ${statusLine}
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+  });
+
+  document.getElementById('body').innerHTML = html;
+}
+
+function clearCompleted() {
+  Object.entries(trips).forEach(([k, v]) => {
+    if (v.status === 'completed') db.ref('requests/' + k).remove();
+  });
+}
+
+db.ref('requests').on('value', snap => { trips = snap.val() || {}; render(); });
+setInterval(render, 30000);
+</script>
+</body>
+</html>

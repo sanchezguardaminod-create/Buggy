@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>Request a buggy</title>
+<script src="firebase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #ffffff;
+    --bg2:      #f5f5f4;
+    --text:     #1a1a1a;
+    --text2:    #6b7280;
+    --border:   #e5e7eb;
+    --radius:   14px;
+    --red:      #dc2626;
+    --red-bg:   #fee2e2;
+    --red-text: #991b1b;
+    --green:    #16a34a;
+    --green-bg: #dcfce7;
+  }
+  html, body { height: 100%; background: var(--bg2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  .card { background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); padding: 2rem 1.75rem; width: 100%; max-width: 380px; }
+  .header { text-align: center; margin-bottom: 2rem; }
+  .icon-ring { width: 60px; height: 60px; border-radius: 50%; background: var(--bg2); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 28px; }
+  .icon-ring.prio { background: var(--red-bg); }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .header p  { font-size: 14px; color: var(--text2); }
+  .prio-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--red-bg); color: var(--red-text); font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; margin-top: 8px; }
+  .field-label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .pax-row { display: flex; align-items: center; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 6px; }
+  .pax-btn { width: 56px; height: 64px; border: none; background: var(--bg2); color: var(--text); font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; -webkit-tap-highlight-color: transparent; }
+  .pax-btn:active { background: var(--border); }
+  .pax-btn:disabled { opacity: .25; cursor: not-allowed; }
+  .pax-center { flex: 1; text-align: center; }
+  .pax-num  { font-size: 36px; font-weight: 700; color: var(--text); line-height: 1; }
+  .pax-word { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .room-wrap { margin-top: 1.25rem; display: none; }
+  .room-inner { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .room-prefix { padding: 0 14px; background: var(--bg2); border-right: 1px solid var(--border); font-size: 13px; color: var(--text2); display: flex; align-items: center; white-space: nowrap; }
+  .room-input { flex: 1; border: none; outline: none; padding: 14px; font-size: 20px; font-weight: 600; color: var(--text); background: var(--bg); }
+  .room-input::placeholder { font-size: 14px; font-weight: 400; color: var(--text2); }
+  .room-hint { font-size: 12px; color: var(--text2); margin-top: 6px; }
+  .submit-btn { width: 100%; margin-top: 1.75rem; padding: 16px; border: none; border-radius: var(--radius); background: var(--text); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .12s; -webkit-tap-highlight-color: transparent; }
+  .submit-btn:active { opacity: .8; }
+  .submit-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .submit-btn.prio { background: var(--red); }
+  .success { display: none; text-align: center; padding: .5rem 0; }
+  .ok-ring { width: 68px; height: 68px; border-radius: 50%; background: var(--green-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 34px; }
+  .success h2 { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .success p  { font-size: 14px; color: var(--text2); line-height: 1.7; }
+  .new-btn { margin-top: 1.5rem; background: none; border: 1px solid var(--border); color: var(--text); padding: 10px 20px; border-radius: var(--radius); font-size: 14px; cursor: pointer; }
+  .new-btn:active { background: var(--bg2); }
+  .err-msg { display: none; background: var(--red-bg); color: var(--red-text); font-size: 13px; padding: 10px 14px; border-radius: 10px; margin-top: 1rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <div id="form-view">
+      <div class="header">
+        <div class="icon-ring" id="icon-ring">🛺</div>
+        <h1 id="station-name">Request a buggy</h1>
+        <p>Tell us how many guests and we'll send the buggy</p>
+        <div class="prio-badge" id="prio-badge" style="display:none">⚡ Priority service</div>
+      </div>
+
+      <div class="field-label">Number of passengers</div>
+      <div class="pax-row">
+        <button class="pax-btn" id="btn-minus" onclick="chPax(-1)" aria-label="Decrease">−</button>
+        <div class="pax-center">
+          <div class="pax-num"  id="pax-num">1</div>
+          <div class="pax-word" id="pax-word">passenger</div>
+        </div>
+        <button class="pax-btn" id="btn-plus" onclick="chPax(1)" aria-label="Increase">+</button>
+      </div>
+
+      <div class="room-wrap" id="room-wrap">
+        <div class="field-label">Room number (optional)</div>
+        <div class="room-inner">
+          <div class="room-prefix">🚪 Room</div>
+          <input class="room-input" id="room-input" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 6042">
+        </div>
+        <div class="room-hint">Helps the driver find you faster</div>
+      </div>
+
+      <button class="submit-btn" id="submit-btn" onclick="sendRequest()">
+        <span>Request buggy</span>
+      </button>
+      <div class="err-msg" id="err-msg">No connection. Please check the Wi-Fi and try again.</div>
+    </div>
+
+    <div class="success" id="success-view">
+      <div class="ok-ring">✓</div>
+      <h2>Buggy on its way!</h2>
+      <p id="success-msg"></p>
+      <button class="new-btn" onclick="resetForm()">New request</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.database();
+
+  const params  = new URLSearchParams(window.location.search);
+  const stName  = decodeURIComponent(params.get('station') || '');
+  const stData  = STATIONS.find(s => s.name === stName) || { name: stName || 'Request', type: 'E', priority: false };
+
+  document.getElementById('station-name').textContent = stData.name || 'Request a buggy';
+  if (stData.priority) {
+    document.getElementById('icon-ring').classList.add('prio');
+    document.getElementById('prio-badge').style.display = 'inline-flex';
+    document.getElementById('submit-btn').classList.add('prio');
+  }
+  if (stData.type === 'B') {
+    document.getElementById('room-wrap').style.display = 'block';
+  }
+
+  let pax = 1;
+  function chPax(d) {
+    pax = Math.max(1, Math.min(8, pax + d));
+    document.getElementById('pax-num').textContent  = pax;
+    document.getElementById('pax-word').textContent = pax === 1 ? 'passenger' : 'passengers';
+    document.getElementById('btn-minus').disabled   = pax <= 1;
+    document.getElementById('btn-plus').disabled    = pax >= 8;
+  }
+  chPax(0);
+
+  async function sendRequest() {
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.querySelector('span').textContent = 'Sending…';
+    document.getElementById('err-msg').style.display = 'none';
+
+    const room = (document.getElementById('room-input').value || '').trim();
+    const req = {
+      station:     stData.name,
+      type:        stData.type,
+      priority:    stData.priority,
+      pax:         pax,
+      room:        room || null,
+      status:      'pending',
+      driver:      null,
+      createdAt:   Date.now(),
+      acceptedAt:  null,
+      completedAt: null,
+    };
+
+    try {
+      await db.ref('requests').push(req);
+      document.getElementById('form-view').style.display   = 'none';
+      document.getElementById('success-view').style.display = 'block';
+      let msg = `Request from <strong>${stData.name}</strong> for <strong>${pax} ${pax===1?'passenger':'passengers'}</strong>`;
+      if (room) msg += ` · Room <strong>${room}</strong>`;
+      msg += '.<br><br>Please wait here — the buggy is on its way.';
+      document.getElementById('success-msg').innerHTML = msg;
+    } catch(e) {
+      document.getElementById('err-msg').style.display = 'block';
+      btn.disabled = false;
+      btn.querySelector('span').textContent = 'Request buggy';
+    }
+  }
+
+  function resetForm() {
+    pax = 1; chPax(0);
+    document.getElementById('room-input').value = '';
+    document.getElementById('err-msg').style.display = 'none';
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = false;
+    btn.querySelector('span').textContent = 'Request buggy';
+    document.getElementById('form-view').style.display   = 'block';
+    document.getElementById('success-view').style.display = 'none';
+  }
+</script>
+</body>
+</html>
