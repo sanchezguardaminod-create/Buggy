@@ -262,8 +262,9 @@ function playBeep() {
       osc.start(audioCtx.currentTime + delay);
       osc.stop(audioCtx.currentTime + delay + 0.3);
     });
-  } catch(e) { console.log('Audio error:', e); }
 }
+
+async function askNotifPermission() {
   if ('Notification' in window) {
     const p = await Notification.requestPermission();
     notifOk = p === 'granted';
