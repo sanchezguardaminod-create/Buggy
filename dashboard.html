@@ -224,6 +224,8 @@ function renderDriverReport(list) {
     ${rows}
   </div>`;
 }
+
+function clearCompleted() {
   Object.entries(trips).forEach(([k, v]) => {
     if (v.status === 'completed') db.ref('requests/' + k).remove();
   });
