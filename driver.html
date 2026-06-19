@@ -158,9 +158,11 @@ let selDriver = null;
 let pin = '';
 
 const SECTION_ORDER = [
-  { key: 'B', label: 'Room blocks' },
-  { key: 'E', label: 'Stations' },
-  { key: 'R', label: 'Restaurants' },
+  { key: 'D', label: '🧳 Departures' },
+  { key: 'M', label: '🔄 Room moves' },
+  { key: 'B', label: '🛺 Room blocks' },
+  { key: 'E', label: '🛺 Stations' },
+  { key: 'R', label: '🛺 Restaurants' },
 ];
 
 function buildLogin() {
@@ -337,7 +339,7 @@ function render() {
   // completed hidden from main view — shown in My rides panel
   const all = [...active];
 
-  const bySection = { R: [], E: [], B: [] };
+  const bySection = { R: [], E: [], B: [], M: [], D: [] };
   all.forEach(t => { if (bySection[t.type]) bySection[t.type].push(t); });
 
   let html = '';
@@ -348,8 +350,11 @@ function render() {
     items.forEach(t => {
       const ts = new Date(t.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       const { label: ageLabel, cls: ageCls } = ageInfo(t.createdAt);
-      const prioBadge = t.priority ? '<span class="prio-tag">⚡ PRIORITY</span>' : '';
-      const roomChip  = t.room ? `<span class="chip">🚪 Room ${t.room}</span>` : '';
+      const prioBadge  = t.priority ? '<span class="prio-tag">⚡ PRIORITY</span>' : '';
+      const roomChip   = t.type === 'B' && t.room ? `<span class="chip">🚪 Room ${t.room}</span>` : '';
+      const moveChip   = t.type === 'M' ? `<span class="chip">🔄 ${t.room} → ${t.roomTo}</span>` : '';
+      const departChip = t.type === 'D' ? `<span class="chip">🧳 Room ${t.room} → Luggage Room</span>` : '';
+      const extraChip  = roomChip || moveChip || departChip;
 
       let cardClass = t.status;
       if (t.status === 'pending' && t.priority) cardClass = 'prio';
@@ -365,18 +370,23 @@ function render() {
 
       let action = '';
       if (t.status === 'pending') {
-        action = `<button class="act-btn accept" onclick="accept('${t._key}')">🚗 Accept</button>`;
+        const btnLabel = t.type === 'M' ? '🔄 Accept move' : t.type === 'D' ? '🧳 Accept collection' : '🚗 Accept';
+        action = `<button class="act-btn accept" onclick="accept('${t._key}')">${btnLabel}</button>`;
       } else if (t.status === 'accepted' && t.driver === me) {
-        action = `<button class="act-btn complete" onclick="complete('${t._key}')">✓ Finish ride</button>`;
+        const doneLabel = t.type === 'M' ? '✓ Move completed' : t.type === 'D' ? '✓ Luggage collected' : '✓ Finish ride';
+        action = `<button class="act-btn complete" onclick="complete('${t._key}')">${doneLabel}</button>`;
       }
+
+      const paxChip = (t.type !== 'M' && t.type !== 'D') ? `<span class="chip">👥 ${t.pax} ${t.pax===1?'pax':'pax'}</span>` : '';
 
       html += `<div class="trip ${cardClass}">
         <div class="trip-main">
           <span class="trip-loc">${t.station}</span>
           ${prioBadge}
           <div class="trip-meta">
-            <span class="chip">👥 ${t.pax} ${t.pax===1?'pax':'pax'}</span>
-            ${roomChip ? '<span class="divider"></span>' + roomChip : ''}
+            ${paxChip}
+            ${(paxChip && extraChip) ? '<span class="divider"></span>' : ''}
+            ${extraChip}
             <span class="divider"></span>
             ${statusChip}
           </div>
