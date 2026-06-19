@@ -183,10 +183,47 @@ function render() {
     html += '</div></div>';
   });
 
-  document.getElementById('body').innerHTML = html;
+  document.getElementById('body').innerHTML = html + renderDriverReport(list);
 }
 
-function clearCompleted() {
+function renderDriverReport(list) {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const completed = list.filter(t => t.status === 'completed' && t.completedAt >= todayStart.getTime() && t.driver);
+  if (!completed.length) return '';
+
+  const byDriver = {};
+  completed.forEach(t => {
+    if (!byDriver[t.driver]) byDriver[t.driver] = { rides: 0, pax: 0, totalMins: 0 };
+    byDriver[t.driver].rides++;
+    byDriver[t.driver].pax += (t.pax || 0);
+    if (t.acceptedAt && t.completedAt) {
+      byDriver[t.driver].totalMins += Math.round((t.completedAt - t.acceptedAt) / 60000);
+    }
+  });
+
+  const rows = Object.entries(byDriver)
+    .sort((a,b) => b[1].rides - a[1].rides)
+    .map(([name, d]) => {
+      const avg = d.rides ? Math.round(d.totalMins / d.rides) : 0;
+      return `<div style="display:grid;grid-template-columns:140px 60px 60px 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:13px;">
+        <span style="font-weight:500;color:var(--text);">${name}</span>
+        <span style="color:var(--text);">${d.rides} rides</span>
+        <span style="color:var(--text2);">${d.pax} pax</span>
+        <span style="color:var(--text2);">~${avg} min avg</span>
+      </div>`;
+    }).join('');
+
+  return `<div class="sec" style="margin-top:8px;">
+    <div class="sec-head">
+      <span class="sec-name">Driver report</span>
+      <span class="sec-ct">${Object.keys(byDriver).length} active today</span>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 60px 60px 80px;gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;">
+      <span>Driver</span><span>Rides</span><span>Pax</span><span>Avg time</span>
+    </div>
+    ${rows}
+  </div>`;
+}
   Object.entries(trips).forEach(([k, v]) => {
     if (v.status === 'completed') db.ref('requests/' + k).remove();
   });
