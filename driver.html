@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#ffffff">
 <title>Buggy — Driver</title>
-<script src="firebase.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -27,6 +27,9 @@
   --green:     #16a34a;
   --green-bg:  #dcfce7;
   --green-text:#14532d;
+  --blue:      #2563eb;
+  --blue-bg:   #eff6ff;
+  --blue-text: #1e40af;
 }
 html, body { height: 100%; background: var(--bg2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -35,68 +38,79 @@ html, body { height: 100%; background: var(--bg2); font-family: -apple-system, B
 .login-card h2 { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .login-card p  { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; }
 .driver-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 240px; overflow-y: auto; margin-bottom: 1.25rem; }
-.d-btn { padding: 9px 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer; text-align: center; line-height: 1.3; transition: all .12s; }
-.d-btn:active { background: var(--bg2); }
+.d-btn { padding: 9px 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer; text-align: center; line-height: 1.3; }
 .d-btn.sel { background: var(--text); color: var(--bg); border-color: var(--text); }
 .pin-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
 .pin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; }
-.dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--bg2); transition: all .1s; }
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--bg2); }
 .dot.filled { background: var(--text); border-color: var(--text); }
 .dot.err    { background: var(--red); border-color: var(--red); }
 .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.n-btn { height: 52px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 20px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .1s; }
-.n-btn:active { background: var(--bg2); }
-.n-btn.del  { font-size: 15px; color: var(--text2); }
+.n-btn { height: 52px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 20px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.n-btn.del { font-size: 15px; color: var(--text2); }
 .pin-err { font-size: 12px; color: var(--red); text-align: center; min-height: 18px; margin-top: 8px; }
 
 #screen-dash { display: none; }
-.topbar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.topbar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
 .driver-pill { display: flex; align-items: center; gap: 7px; background: var(--bg2); padding: 6px 12px; border-radius: 999px; font-size: 13px; color: var(--text2); }
 .driver-pill strong { color: var(--text); font-weight: 600; }
 .live { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .tb-btn { font-size: 12px; color: var(--text2); background: var(--bg); border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
-.tb-btn:active { background: var(--bg2); }
+
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
 .stat { background: var(--bg2); border-radius: 10px; padding: 10px 12px; }
+.stat.clickable { cursor: pointer; }
 .stat-n { font-size: 22px; font-weight: 700; color: var(--text); }
 .stat-n.red { color: var(--red); }
 .stat-l { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
 .notif-bar { display: none; align-items: center; gap: 8px; padding: 9px 14px; background: var(--amber-bg); border-bottom: 1px solid #f59e0b; font-size: 13px; color: var(--amber-text); font-weight: 500; }
+
+/* MY RIDES PANEL */
+#my-rides-panel { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg2); z-index: 100; overflow-y: auto; }
+.panel-topbar { background: var(--bg); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; }
+.back-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--text); }
+.panel-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.panel-body { padding: 12px 14px; }
+.ride-card { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid #22c55e; border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+.ride-card-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.ride-loc { font-size: 15px; font-weight: 600; color: var(--text); }
+.ride-ts { font-size: 11px; color: var(--text2); }
+.ride-meta { font-size: 12px; color: var(--text2); display: flex; gap: 12px; }
+.ride-dur { color: var(--green); font-weight: 600; }
+
 .body { padding: 12px 14px 32px; }
-.sec-hd { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px; }
+.sec-hd { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 7px; }
 .sec-hd:first-child { margin-top: 0; }
 .sec-name { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; }
-.sec-ct   { font-size: 11px; background: var(--bg3); padding: 2px 8px; border-radius: 999px; color: var(--text2); }
+.sec-ct { font-size: 11px; background: var(--bg3); padding: 2px 8px; border-radius: 999px; color: var(--text2); }
 
 .trip { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; border-radius: var(--radius); border: 1px solid var(--border); border-left: 3px solid #e5e7eb; padding: 10px 13px; margin-bottom: 6px; background: var(--bg); }
 .trip.pending  { border-left-color: var(--red); }
 .trip.prio     { border-left-color: var(--red); background: #fff9f9; }
 .trip.mine     { border-left-color: var(--green); background: #f0fdf4; }
 .trip.accepted { border-left-color: var(--amber); background: var(--amber-bg); }
-.trip.done     { border-left-color: #d1d5db; opacity: .6; }
+.trip.move-card { border-left-color: var(--blue); background: var(--blue-bg); }
+.trip.depart-card { border-left-color: #7c3aed; background: #f5f3ff; }
 
-.trip-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.trip-main { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
 .trip-loc { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .prio-tag { font-size: 9px; font-weight: 600; background: var(--red-bg); color: var(--red-text); padding: 1px 6px; border-radius: 999px; flex-shrink: 0; }
-.trip-meta { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; flex-shrink: 0; }
+.trip-meta { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
 .chip { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 .divider { width: 1px; height: 12px; background: var(--border); flex-shrink: 0; }
-
 .age { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
 .age.fresh { background: var(--green-bg); color: var(--green-text); }
 .age.mid   { background: var(--amber-bg); color: var(--amber-text); }
 .age.old   { background: var(--red-bg);   color: var(--red-text); }
-
-.assigned { font-size: 11px; color: var(--amber-text); font-weight: 500; white-space: nowrap; }
+.assigned { font-size: 11px; font-weight: 500; white-space: nowrap; }
 .assigned.mine { color: var(--green-text); }
-.done-txt { font-size: 11px; color: var(--green-text); font-weight: 500; white-space: nowrap; }
+.assigned.other { color: var(--amber-text); }
 
-.act-btn { padding: 7px 14px; border-radius: 10px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; }
-.act-btn:active { opacity: .8; }
+.act-btn { padding: 7px 14px; border-radius: 10px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .act-btn.accept   { background: var(--amber-bg); color: var(--amber-text); }
 .act-btn.complete { background: var(--green-bg); color: var(--green-text); }
-
 .empty { text-align: center; padding: 3rem 1rem; color: var(--text2); font-size: 15px; }
 </style>
 </head>
@@ -128,22 +142,24 @@ html, body { height: 100%; background: var(--bg2); font-family: -apple-system, B
   <div class="stats">
     <div class="stat"><div class="stat-n red" id="st-pend">0</div><div class="stat-l">Pending</div></div>
     <div class="stat"><div class="stat-n" id="st-acc">0</div><div class="stat-l">In progress</div></div>
-    <div class="stat" onclick="toggleMyRides()" style="cursor:pointer;">
+    <div class="stat clickable" onclick="toggleMyRides()">
       <div class="stat-n" id="st-done">0</div>
-      <div class="stat-l" style="display:flex;align-items:center;gap:4px;">Today <span id="today-arrow" style="font-size:10px;">▼</span></div>
+      <div class="stat-l">Today <span id="today-arrow">▼</span></div>
     </div>
   </div>
   <div class="notif-bar" id="notif-bar">
     <span>🔔</span><span id="notif-text">New request</span>
   </div>
-  <div id="my-rides-panel" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg2); z-index:100; overflow-y:auto;">
-    <div style="background:var(--bg); border-bottom:1px solid var(--border); padding:10px 14px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:10;">
-      <button onclick="toggleMyRides()" style="background:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; color:var(--text);">← Back</button>
-      <span style="font-size:15px; font-weight:600; color:var(--text);">My rides today</span>
-    </div>
-    <div id="my-rides-list" style="padding:12px 14px;"></div>
-  </div>
   <div class="body" id="trips-body"></div>
+</div>
+
+<!-- MY RIDES PANEL -->
+<div id="my-rides-panel">
+  <div class="panel-topbar">
+    <button class="back-btn" onclick="toggleMyRides()">← Back</button>
+    <span class="panel-title">My rides today</span>
+  </div>
+  <div class="panel-body" id="my-rides-list"></div>
 </div>
 
 <script>
@@ -156,6 +172,7 @@ let notifOk = false;
 let prevPendingCount = -1;
 let selDriver = null;
 let pin = '';
+let audioCtx = null;
 
 const SECTION_ORDER = [
   { key: 'D', label: '🧳 Departures' },
@@ -165,6 +182,49 @@ const SECTION_ORDER = [
   { key: 'R', label: '🛺 Restaurants' },
 ];
 
+// ── Audio ──────────────────────────────────────────────────────────────────
+document.addEventListener('click', () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}, { once: false });
+
+function playBeep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    [0, 0.25].forEach(delay => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.value = 880; osc.type = 'sine';
+      gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.3);
+      osc.start(audioCtx.currentTime + delay);
+      osc.stop(audioCtx.currentTime + delay + 0.3);
+    });
+  } catch(e) {}
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+async function askNotifPermission() {
+  if ('Notification' in window) {
+    const p = await Notification.requestPermission();
+    notifOk = p === 'granted';
+  }
+}
+
+function notify(body) {
+  const bar = document.getElementById('notif-bar');
+  document.getElementById('notif-text').textContent = body;
+  bar.style.display = 'flex';
+  setTimeout(() => { bar.style.display = 'none'; }, 8000);
+  if (notifOk) {
+    try { new Notification('🛺 New request', { body, requireInteraction: true }); } catch(e) {}
+  }
+  playBeep();
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────
 function buildLogin() {
   const grid = document.getElementById('driver-grid');
   DRIVERS.forEach(d => {
@@ -192,7 +252,7 @@ function buildLogin() {
 }
 
 function addPin(k) {
-  if (!selDriver) { document.getElementById('pin-err').textContent = 'Please select your name first'; return; }
+  if (!selDriver) { document.getElementById('pin-err').textContent = 'Select your name first'; return; }
   if (pin.length >= 4) return;
   pin += k; updateDots();
   if (pin.length === 4) checkPin();
@@ -225,8 +285,7 @@ function checkPin() {
 }
 function doLogout() {
   db.ref('requests').off();
-  me = null; trips = {}; pin = ''; selDriver = null;
-  prevPendingCount = -1;
+  me = null; trips = {}; pin = ''; selDriver = null; prevPendingCount = -1;
   document.querySelectorAll('.d-btn').forEach(b => b.classList.remove('sel'));
   updateDots();
   document.getElementById('pin-err').textContent = '';
@@ -234,60 +293,15 @@ function doLogout() {
   document.getElementById('screen-login').style.display = 'flex';
 }
 
-// ── Audio unlock on first interaction ─────────────────────────────────────
-let audioCtx = null;
-document.addEventListener('click', () => {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-}, { once: false });
-
-function playBeep() {
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    // Two-tone alert beep
-    [0, 0.25].forEach(delay => {
-      const osc  = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
-      gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + delay + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.3);
-      osc.start(audioCtx.currentTime + delay);
-      osc.stop(audioCtx.currentTime + delay + 0.3);
-    });
+// ── My rides panel ─────────────────────────────────────────────────────────
+function toggleMyRides() {
+  const panel = document.getElementById('my-rides-panel');
+  const open  = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = open ? 'block' : 'none';
+  document.getElementById('today-arrow').textContent = open ? '▲' : '▼';
 }
 
-async function askNotifPermission() {
-  if ('Notification' in window) {
-    const p = await Notification.requestPermission();
-    notifOk = p === 'granted';
-    if (!notifOk) {
-      alert('Please allow notifications in your browser settings to receive ride alerts.');
-    }
-  }
-}
-
-function notify(body) {
-  // Visual banner
-  const bar = document.getElementById('notif-bar');
-  document.getElementById('notif-text').textContent = body;
-  bar.style.display = 'flex';
-  setTimeout(() => { bar.style.display = 'none'; }, 8000);
-  // Push notification
-  if (notifOk) {
-    try { new Notification('🛺 New buggy request', { body, requireInteraction: true }); } catch(e) {}
-  }
-  // In-page audio beep (works even when Safari blocks OS sound)
-  playBeep();
-}
-
+// ── Firebase ───────────────────────────────────────────────────────────────
 function startListening() {
   db.ref('requests').on('value', snap => {
     trips = snap.val() || {};
@@ -300,13 +314,13 @@ function accept(key) {
   if (!t || t.status !== 'pending') return;
   db.ref('requests/' + key).update({ status: 'accepted', driver: me, acceptedAt: Date.now() });
 }
-
 function complete(key) {
   const t = trips[key];
   if (!t || t.status !== 'accepted' || t.driver !== me) return;
   db.ref('requests/' + key).update({ status: 'completed', completedAt: Date.now() });
 }
 
+// ── Render ─────────────────────────────────────────────────────────────────
 function ageInfo(createdAt) {
   const mins = Math.floor((Date.now() - createdAt) / 60000);
   const label = mins < 1 ? 'Just now' : mins === 1 ? '1 min ago' : `${mins} min ago`;
@@ -315,8 +329,7 @@ function ageInfo(createdAt) {
 }
 
 function render() {
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const list = Object.entries(trips).map(([k, v]) => ({ ...v, _key: k }));
+  const list      = Object.entries(trips).map(([k, v]) => ({ ...v, _key: k }));
   const pending   = list.filter(t => t.status === 'pending');
   const accepted  = list.filter(t => t.status === 'accepted');
   const completed = list.filter(t => t.status === 'completed' && t.driver === me);
@@ -328,7 +341,7 @@ function render() {
   }
   prevPendingCount = pCount;
 
-  document.getElementById('st-pend').textContent = pending.length;
+  document.getElementById('st-pend').textContent = pCount;
   document.getElementById('st-acc').textContent  = accepted.length;
   document.getElementById('st-done').textContent = completed.length;
 
@@ -337,11 +350,8 @@ function render() {
     return a.createdAt - b.createdAt;
   };
   const active = [...pending.sort(sortFn), ...accepted.sort(sortFn)];
-  // completed hidden from main view — shown in My rides panel
-  const all = [...active];
-
   const bySection = { R: [], E: [], B: [], M: [], D: [] };
-  all.forEach(t => { if (bySection[t.type]) bySection[t.type].push(t); });
+  active.forEach(t => { if (bySection[t.type] !== undefined) bySection[t.type].push(t); });
 
   let html = '';
   SECTION_ORDER.forEach(sec => {
@@ -351,44 +361,46 @@ function render() {
     items.forEach(t => {
       const ts = new Date(t.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       const { label: ageLabel, cls: ageCls } = ageInfo(t.createdAt);
-      const prioBadge  = t.priority ? '<span class="prio-tag">⚡ PRIORITY</span>' : '';
-      const roomChip   = t.type === 'B' && t.room ? `<span class="chip">🚪 Room ${t.room}</span>` : '';
-      const moveChip   = t.type === 'M' ? `<span class="chip">🔄 ${t.room} → ${t.roomTo}</span>` : '';
-      const departChip = t.type === 'D' ? `<span class="chip">🧳 Room ${t.room} → Luggage Room</span>` : '';
-      const extraChip  = roomChip || moveChip || departChip;
+
+      const prioBadge = t.priority ? '<span class="prio-tag">⚡ PRIORITY</span>' : '';
+      let detailChip = '';
+      if (t.type === 'M') detailChip = `<span class="chip">🔄 Room ${t.room} → ${t.roomTo}</span>`;
+      else if (t.type === 'D') detailChip = `<span class="chip">🧳 Room ${t.room} → Luggage Room</span>`;
+      else if (t.type === 'B' && t.room) detailChip = `<span class="chip">🚪 Room ${t.room}</span>`;
+
+      const paxChip = (t.type !== 'M' && t.type !== 'D') ? `<span class="chip">👥 ${t.pax} pax</span>` : '';
 
       let cardClass = t.status;
+      if (t.type === 'M') cardClass = 'move-card';
+      if (t.type === 'D') cardClass = 'depart-card';
       if (t.status === 'pending' && t.priority) cardClass = 'prio';
-      if (t.status === 'accepted' && t.driver === me) cardClass = 'mine';
+      if (t.status === 'accepted' && t.driver === me && t.type !== 'M' && t.type !== 'D') cardClass = 'mine';
 
       let statusChip = '';
       if (t.status === 'pending') {
         statusChip = `<span class="age ${ageCls}">${ageLabel}</span>`;
       } else if (t.status === 'accepted') {
-        const cls = t.driver === me ? 'mine' : '';
+        const cls = t.driver === me ? 'mine' : 'other';
         statusChip = `<span class="assigned ${cls}">🚗 ${t.driver} — on the way</span>`;
       }
 
       let action = '';
       if (t.status === 'pending') {
-        const btnLabel = t.type === 'M' ? '🔄 Accept move' : t.type === 'D' ? '🧳 Accept collection' : '🚗 Accept';
-        action = `<button class="act-btn accept" onclick="accept('${t._key}')">${btnLabel}</button>`;
+        const lbl = t.type === 'M' ? '🔄 Accept' : t.type === 'D' ? '🧳 Accept' : '🚗 Accept';
+        action = `<button class="act-btn accept" onclick="accept('${t._key}')">${lbl}</button>`;
       } else if (t.status === 'accepted' && t.driver === me) {
-        const doneLabel = t.type === 'M' ? '✓ Move completed' : t.type === 'D' ? '✓ Luggage collected' : '✓ Finish ride';
-        action = `<button class="act-btn complete" onclick="complete('${t._key}')">${doneLabel}</button>`;
+        const lbl = t.type === 'M' ? '✓ Move done' : t.type === 'D' ? '✓ Collected' : '✓ Finish ride';
+        action = `<button class="act-btn complete" onclick="complete('${t._key}')">${lbl}</button>`;
       }
-
-      const paxChip = (t.type !== 'M' && t.type !== 'D') ? `<span class="chip">👥 ${t.pax} ${t.pax===1?'pax':'pax'}</span>` : '';
 
       html += `<div class="trip ${cardClass}">
         <div class="trip-main">
           <span class="trip-loc">${t.station}</span>
           ${prioBadge}
           <div class="trip-meta">
-            ${paxChip}
-            ${(paxChip && extraChip) ? '<span class="divider"></span>' : ''}
-            ${extraChip}
-            <span class="divider"></span>
+            ${paxChip}${paxChip && detailChip ? '<span class="divider"></span>' : ''}
+            ${detailChip}
+            ${(paxChip || detailChip) ? '<span class="divider"></span>' : ''}
             ${statusChip}
           </div>
         </div>
@@ -397,45 +409,33 @@ function render() {
     });
   });
 
-  if (!all.length) html = '<div class="empty">No active requests ✓</div>';
+  if (!html) html = '<div class="empty">No active requests ✓</div>';
   document.getElementById('trips-body').innerHTML = html;
 
-  // update My rides panel
+  // My rides
   const myDone = completed.sort((a,b) => (b.completedAt||0) - (a.completedAt||0));
-  const myRidesList = document.getElementById('my-rides-list');
+  const myList = document.getElementById('my-rides-list');
   if (!myDone.length) {
-    myRidesList.innerHTML = '<div style="text-align:center;padding:3rem 1rem;font-size:14px;color:var(--text2);">No completed rides yet</div>';
+    myList.innerHTML = '<div class="empty">No completed rides yet</div>';
   } else {
-    myRidesList.innerHTML = myDone.map((t, i) => {
-      const from  = new Date(t.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-      const to    = t.completedAt ? new Date(t.completedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
-      const mins  = t.completedAt ? Math.round((t.completedAt - t.createdAt) / 60000) : '—';
-      const prio  = t.priority ? '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:999px;font-weight:600;">⚡ PRIORITY</span>' : '';
-      return `<div style="background:var(--bg);border:1px solid var(--border);border-left:3px solid #22c55e;border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:13px;font-weight:600;color:var(--text2);">#${myDone.length - i}</span>
-            <span style="font-size:15px;font-weight:600;color:var(--text);">${t.station}</span>
-            ${prio}
-          </div>
-          <span style="font-size:11px;color:var(--text2);">${from}</span>
+    myList.innerHTML = myDone.map((t, i) => {
+      const from = new Date(t.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      const to   = t.completedAt ? new Date(t.completedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const mins = t.completedAt ? Math.round((t.completedAt - t.createdAt) / 60000) : '—';
+      const detail = t.type === 'M' ? `Room ${t.room} → ${t.roomTo}` : t.type === 'D' ? `Room ${t.room} → Luggage Room` : `${t.pax} pax`;
+      return `<div class="ride-card">
+        <div class="ride-card-top">
+          <span class="ride-loc">#${myDone.length - i} ${t.station}</span>
+          <span class="ride-ts">${from}</span>
         </div>
-        <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);">
-          <span>👥 ${t.pax} ${t.pax===1?'passenger':'passengers'}</span>
-          <span>🕐 ${from} → ${to}</span>
-          <span style="color:#16a34a;font-weight:600;">✓ ${mins} min</span>
+        <div class="ride-meta">
+          <span>${detail}</span>
+          <span>${from} → ${to}</span>
+          <span class="ride-dur">✓ ${mins} min</span>
         </div>
       </div>`;
     }).join('');
   }
-}
-
-function toggleMyRides() {
-  const panel = document.getElementById('my-rides-panel');
-  const open  = panel.style.display === 'none';
-  panel.style.display = open ? 'block' : 'none';
-  const arrow = document.getElementById('today-arrow');
-  if (arrow) arrow.textContent = open ? '▲' : '▼';
 }
 
 buildLogin();
